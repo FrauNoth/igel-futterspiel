@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Was frisst der Igel?</title>
+
+  <style>
+    :root {
+      --rot: #e53935;
+      --blau: #1877c9;
+      --gruen: #299b4b;
+      --dunkel: #354331;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      overflow: hidden;
+      font-family: Arial, Helvetica, sans-serif;
+      color: var(--dunkel);
+      background: linear-gradient(
+        to bottom,
+        #bdeaff 0%,
+        #d9f5ff 38%,
+        #a7dc86 38%,
+        #76bd68 100%
+      );
+    }
+
+    header {
+      height: 10vh;
+      min-height: 65px;
+      padding: 7px 20px;
+      text-align: center;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+    }
+
+    h1 {
+      margin: 0;
+      color: #58371e;
+      font-size: clamp(1.5rem, 3.2vh, 2.4rem);
+    }
+
+    header p {
+      margin: 4px 0 0;
+      font-size: clamp(0.85rem, 1.9vh, 1.15rem);
+    }
+
+    main {
+      height: 90vh;
+      padding: 1vh 1.5vw;
+      display: flex;
+      flex-direction: column;
+      gap: 0.7vh;
+    }
+
+    .playfield {
+      flex: 1;
+      min-height: 0;
+      width: 100%;
+      max-width: 1500px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(110px, 1fr));
+      grid-template-rows: repeat(4, minmax(75px, 1fr));
+      gap: 0.8vw;
+    }
+
+    /* Bild-Wort-Karten */
+
+    .food-card {
+      min-width: 0;
+      min-height: 0;
+      padding: 4px;
+      border: 3px solid white;
+      border-radius: 15px;
+      background: rgba(255, 255, 255, 0.97);
+      box-shadow: 0 3px 7px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      cursor: grab;
+      user-select: none;
+      touch-action: manipulation;
+      overflow: hidden;
+      transition:
+        transform 0.16s,
+        opacity 0.25s,
+        box-shadow 0.16s;
+    }
+
+    .food-card:hover,
+    .food-card.selected {
+      transform: scale(1.05);
+      box-shadow:
+        0 0 0 4px #f3b51b,
+        0 5px 10px rgba(0, 0, 0, 0.25);
+      z-index: 2;
+    }
+
+    .food-card.eaten {
+      opacity: 0;
+      transform: scale(0.1);
+      pointer-events: none;
+    }
+
+    .food-card.returning {
+      animation: returnCard 0.7s ease-out;
+    }
+
+    @keyframes returnCard {
+      0% {
+        opacity: 0.2;
+        transform: scale(0.5) rotate(-15deg);
+      }
+
+      55% {
+        opacity: 1;
+        transform: scale(1.12) rotate(8deg);
+      }
+
+      100% {
+        opacity: 1;
+        transform: scale(1) rotate(0);
+      }
+    }
+
+    .food-image {
+      width: clamp(42px, 5vw, 72px);
+      height: clamp(42px, 5vw, 72px);
+      flex-shrink: 0;
+      object-fit: cover;
+      border-radius: 12px;
+      background: #e9f3db;
+    }
+
+    .fallback-image {
+      width: clamp(42px, 5vw, 72px);
+      height: clamp(42px, 5vw, 72px);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      background: #e9f3db;
+      font-size: clamp(2rem, 4vw, 3rem);
+    }
+
+    .food-content {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .article-dot {
+      width: 19px;
+      height: 19px;
+      flex-shrink: 0;
+      border-radius: 50%;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+    }
+
+    .article-dot.der {
+      background: var(--blau);
+    }
+
+    .article-dot.die {
+      background: var(--rot);
+    }
+
+    .article-dot.das {
+      background: var(--gruen);
+    }
+
+    .syllables {
+      white-space: nowrap;
+      font-size: clamp(0.78rem, 1.8vh, 1.1rem);
+      font-weight: 800;
+    }
+
+    .syllable-0,
+    .syllable-2,
+    .syllable-4,
+    .syllable-6 {
+      color: var(--rot);
+    }
+
+    .syllable-1,
+    .syllable-3,
+    .syllable-5 {
+      color: var(--blau);
+    }
+
+    /* Igelbereich */
+
+    .hedgehog-zone {
+      grid-column: 2 / 5;
+      grid-row: 2 / 4;
+      min-height: 0;
+      border: 5px dashed #4b8a40;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      text-align: center;
+      transition: background 0.2s, transform 0.2s;
+    }
+
+    .hedgehog-zone.drag-over {
+      background: rgba(255, 247, 151, 0.9);
+      transform: scale(1.02);
+    }
+
+    .hedgehog-picture {
+      position: relative;
+      width: min(220px, 25vw);
+      height: min(150px, 20vh);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .hedgehog-picture img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(3px 5px 3px rgba(0, 0, 0, 0.25));
+    }
+
+    .hedgehog-fallback {
+      font-size: clamp(5rem, 12vh, 9rem);
+      line-height: 1;
+    }
+
+    .hedgehog-face {
+      position: absolute;
+      left: 58%;
+      top: 42%;
+      font-size: clamp(1.3rem, 3vh, 2rem);
+    }
+
+    .drop-text {
+      margin-top: 2px;
+      color: #35632d;
+      font-size: clamp(0.8rem, 1.7vh, 1.1rem);
+      font-weight: bold;
+    }
+
+    .hedgehog.chewing {
+      animation: chewing 0.22s ease-in-out 5;
+    }
+
+    @keyframes chewing {
+      0% {
+        transform: rotate(0) scale(1);
+      }
+
+      50% {
+        transform: rotate(-4deg) scale(1.05);
+      }
+
+      100% {
+        transform: rotate(4deg) scale(1);
+      }
+    }
+
+    .hedgehog.happy {
+      animation: happyJump 0.55s ease-in-out;
+    }
+
+    @keyframes happyJump {
+      0%, 100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-10px) scale(1.05);
+      }
+    }
+
+    .hedgehog-face.sad {
+      animation: sadFace 0.7s ease-in-out;
+    }
+
+    @keyframes sadFace {
+      0%, 100% {
+        transform: rotate(0);
+      }
+
+      50% {
+        transform: rotate(-14deg) translateY(5px);
+      }
+    }
+
+    /* Ausspucken */
+
+    .spit-item {
+      position: fixed;
+      z-index: 100;
+      pointer-events: none;
+      font-size: 3rem;
+      animation: spitBack 0.8s ease-in-out forwards;
+    }
+
+    @keyframes spitBack {
+      0% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(0.7);
+      }
+
+      40% {
+        transform:
+          translate(
+            calc(-50% + var(--dx) * 0.4),
+            calc(-50% + var(--dy) * 0.4 - 60px)
+          )
+          scale(1.05)
+          rotate(-20deg);
+      }
+
+      100% {
+        opacity: 0.95;
+        transform:
+          translate(
+            calc(-50% + var(--dx)),
+            calc(-50% + var(--dy))
+          )
+          scale(0.8)
+          rotate(25deg);
+      }
+    }
+
+    #message {
+      min-height: 24px;
+      text-align: center;
+      font-size: clamp(0.8rem, 1.8vh, 1.05rem);
+      font-weight: bold;
+    }
+
+    /* Unterer Bereich */
+
+    .bottom-area {
+      min-height: 92px;
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: stretch;
+      gap: 12px;
+    }
+
+    .tray {
+      padding: 7px 10px;
+      border-radius: 13px;
+      background: rgba(255, 255, 255, 0.94);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+      font-size: clamp(0.75rem, 1.7vh, 1rem);
+    }
+
+    .tray h2 {
+      margin: 0 0 4px;
+      font-size: clamp(0.8rem, 1.8vh, 1.05rem);
+    }
+
+    .eaten-tray {
+      border: 3px solid #70ae68;
+    }
+
+    .hint-tray {
+      min-width: 180px;
+      border: 3px solid #e58a8a;
+      text-align: center;
+    }
+
+    .tray-items {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .tray-item {
+      padding: 2px 7px;
+      border-radius: 8px;
+      background: #f4fff1;
+      font-size: 1.4rem;
+    }
+
+    .button-area {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 7px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 11px;
+      padding: 9px 14px;
+      background: #f4bd36;
+      color: #4c3210;
+      font-size: clamp(0.75rem, 1.6vh, 1rem);
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+      white-space: nowrap;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+    }
+
+    #resetButton {
+      background: white;
+      color: #49392d;
+    }
+
+    /* Bauchfenster */
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.62);
+    }
+
+    .modal.show {
+      display: flex;
+    }
+
+    .modal-content {
+      width: min(680px, 95vw);
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 20px;
+      border: 6px solid #bd8247;
+      border-radius: 25px;
+      background: #fffbe9;
+      text-align: center;
+    }
+
+    .modal-content h2 {
+      margin-top: 0;
+      color: #5d3b22;
+    }
+
+    .belly-view {
+      min-height: 180px;
+      max-width: 500px;
+      margin: 15px auto;
+      padding: 20px;
+      border: 8px solid #b87945;
+      border-radius: 50%;
+      background: #f2c895;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      align-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .belly-food {
+      padding: 6px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .belly-food img {
+      width: 65px;
+      height: 55px;
+      object-fit: contain;
+      border-radius: 10px;
+    }
+
+    @media (max-width: 850px), (orientation: portrait) {
+      body {
+        overflow: auto;
+      }
+
+      header {
+        height: auto;
+      }
+
+      main {
+        height: auto;
+      }
+
+      .playfield {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .food-card {
+        width: 145px;
+        min-height: 88px;
+      }
+
+      .hedgehog-zone {
+        order: -1;
+        width: 100%;
+        min-height: 210px;
+      }
+
+      .bottom-area {
+        grid-template-columns: 1fr;
+      }
+
+      .button-area {
+        flex-direction: row;
+        justify-content: center;
+      }
+
+      .hint-tray {
+        min-width: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>Was frisst der Igel?</h1>
+    <p>Ziehe die Nahrung auf den Igel oder tippe sie zuerst und dann den Igel an.</p>
+  </header>
+
+  <main>
+    <section class="playfield" id="playfield">
+
+      <div class="hedgehog-zone" id="hedgehogZone">
+        <div class="hedgehog-picture" id="hedgehog">
+          <img
+            src="https://loremflickr.com/320/220/hedgehog"
+            alt="Igel"
+            id="hedgehogImage"
+          >
+
+          <div
+            class="hedgehog-fallback"
+            id="hedgehogFallback"
+            style="display: none;"
+          >
+            🦔
+          </div>
+
+          <div class="hedgehog-face" id="hedgehogFace">😊</div>
+        </div>
+
+        <div class="drop-text">Hierher ziehen oder antippen!</div>
+      </div>
+    </section>
+
+    <div id="message" aria-live="polite"></div>
+
+    <section class="bottom-area">
+      <div class="tray eaten-tray">
+        <h2>Das liegt im Bauch:</h2>
+        <div class="tray-items" id="eatenItems"></div>
+      </div>
+
+      <div class="button-area">
+        <button id="finishButton">Fertig – den Bauch ansehen</button>
+        <button id="resetButton">Neu beginnen</button>
+      </div>
+
+      <div class="tray hint-tray">
+        <h2>Merke:</h2>
+        <div>Was der Igel nicht frisst, spuckt er wieder aus.</div>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="bellyModal">
+    <div class="modal-content">
+      <h2>Der Bauch des Igels</h2>
+      <p>Das hat der Igel gefressen:</p>
+
+      <div class="belly-view" id="bellyView"></div>
+
+      <p id="bellyText"></p>
+
+      <button id="closeButton">Schließen</button>
+    </div>
+  </div>
+
+  <script>
+    const foods = [
+      {
+        article: "der",
+        word: "Käfer",
+        syllables: ["Kä", "fer"],
+        image: "https://loremflickr.com/180/130/beetle",
+        fallback: "🪲",
+        eats: true
+      },
+      {
+        article: "der",
+        word: "Ohrenkneifer",
+        syllables: ["Oh", "ren", "knei", "fer"],
+        image: "https://commons.wikimedia.org/wiki/Special:FilePath/Forficula%20auricularia.jpg?width=320",
+        fallback: "🪳",
+        eats: true
+      },
+      {
+        article: "die",
+        word: "Raupe",
+        syllables: ["Rau", "pe"],
+        image: "https://loremflickr.com/180/130/caterpillar",
+        fallback: "🐛",
+        eats: true
+      },
+      {
+        article: "die",
+        word: "Spinne",
+        syllables: ["Spin", "ne"],
+        image: "https://loremflickr.com/180/130/spider",
+        fallback: "🕷️",
+        eats: true
+      },
+      {
+        article: "der",
+        word: "Regenwurm",
+        syllables: ["Re", "gen", "wurm"],
+        image: "https://loremflickr.com/180/130/earthworm",
+        fallback: "🪱",
+        eats: true
+      },
+      {
+        article: "die",
+        word: "Schnecke",
+        syllables: ["Schne", "cke"],
+        image: "https://loremflickr.com/180/130/snail",
+        fallback: "🐌",
+        eats: true
+      },
+      {
+        article: "die",
+        word: "Maus",
+        syllables: ["Maus"],
+        image: "https://loremflickr.com/180/130/mouse",
+        fallback: "🐭",
+        eats: true
+      },
+      {
+        article: "der",
+        word: "Frosch",
+        syllables: ["Frosch"],
+        image: "https://loremflickr.com/180/130/frog",
+        fallback: "🐸",
+        eats: true
+      },
+      {
+        article: "das",
+        word: "Vogelei",
+        syllables: ["Vo", "gel", "ei"],
+        image: "https://loremflickr.com/180/130/bird,egg",
+        fallback: "🥚",
+        eats: true
+      },
+      {
+        article: "die",
+        word: "Gummibärchen",
+        syllables: ["Gum", "mi", "bär", "chen"],
+        image: "https://loremflickr.com/180/130/gummy,candy",
+        fallback: "🍬",
+        eats: false
+      },
+      {
+        article: "das",
+        word: "Brot",
+        syllables: ["Brot"],
+        image: "https://loremflickr.com/180/130/bread",
+        fallback: "🍞",
+        eats: false
+      },
+      {
+        article: "die",
+        word: "Schokolade",
+        syllables: ["Scho", "ko", "la", "de"],
+        image: "https://loremflickr.com/180/130/chocolate",
+        fallback: "🍫",
+        eats: false
+      },
+      {
+        article: "die",
+        word: "Banane",
+        syllables: ["Ba", "na", "ne"],
+        image: "https://loremflickr.com/180/130/banana",
+        fallback: "🍌",
+        eats: false
+      },
+      {
+        article: "der",
+        word: "Käse",
+        syllables: ["Kä", "se"],
+        image: "https://loremflickr.com/180/130/cheese",
+        fallback: "🧀",
+        eats: false
+      }
+    ];
+
+    const playfield = document.getElementById("playfield");
+    const hedgehogZone = document.getElementById("hedgehogZone");
+    const hedgehog = document.getElementById("hedgehog");
+    const hedgehogFace = document.getElementById("hedgehogFace");
+    const eatenItems = document.getElementById("eatenItems");
+    const message = document.getElementById("message");
+    const bellyModal = document.getElementById("bellyModal");
+    const bellyView = document.getElementById("bellyView");
+    const bellyText = document.getElementById("bellyText");
+
+    let eaten = [];
+    let selectedCard = null;
+
+    function createSyllableText(food) {
+      const syllables = document.createElement("div");
+      syllables.className = "syllables";
+
+      food.syllables.forEach((syllable, index) => {
+        const span = document.createElement("span");
+        span.className = `syllable-${index}`;
+        span.textContent = syllable;
+        syllables.appendChild(span);
+      });
+
+      return syllables;
+    }
+
+    function createFallbackImage(food) {
+      const fallback = document.createElement("div");
+      fallback.className = "fallback-image";
+      fallback.textContent = food.fallback;
+      fallback.title = food.word;
+      return fallback;
+    }
+
+    function createFoodCard(food, index) {
+      const card = document.createElement("div");
+
+      card.className = "food-card";
+      card.draggable = true;
+      card.dataset.name = food.word;
+
+      const image = document.createElement("img");
+      image.className = "food-image";
+      image.src = food.image;
+      image.alt = `${food.article} ${food.word}`;
+
+      image.addEventListener("error", () => {
+        if (image.parentElement) {
+          image.replaceWith(createFallbackImage(food));
+        }
+      });
+
+      const content = document.createElement("div");
+      content.className = "food-content";
+
+      const dot = document.createElement("span");
+      dot.className = `article-dot ${food.article}`;
+      dot.title = `Artikel: ${food.article}`;
+      dot.setAttribute("aria-label", `Punkt für ${food.article}`);
+
+      content.appendChild(dot);
+      content.appendChild(createSyllableText(food));
+
+      card.appendChild(image);
+      card.appendChild(content);
+
+      card.addEventListener("dragstart", event => {
+        event.dataTransfer.setData("text/plain", food.word);
+        selectedCard = card;
+        card.classList.add("selected");
+      });
+
+      card.addEventListener("dragend", () => {
+        card.classList.remove("selected");
+      });
+
+      card.addEventListener("click", () => {
+        if (card.classList.contains("eaten")) {
+          return;
+        }
+
+        document.querySelectorAll(".food-card").forEach(otherCard => {
+          otherCard.classList.remove("selected");
+        });
+
+        selectedCard = card;
+        card.classList.add("selected");
+        message.textContent = "Ausgewählt. Tippe jetzt auf den Igel.";
+      });
+
+      return card;
+    }
+
+    /*
+      Die Karten werden rings um den Igel angeordnet.
+    */
+
+    const positions = [
+      [1, 1], [2, 1], [3, 1], [4, 1], [5, 1],
+      [1, 2], [5, 2],
+      [1, 3], [5, 3],
+      [1, 4], [2, 4], [3, 4], [4, 4], [5, 4]
+    ];
+
+    foods.forEach((food, index) => {
+      const card = createFoodCard(food, index);
+      card.style.gridColumn = positions[index][0];
+      card.style.gridRow = positions[index][1];
+      playfield.insertBefore(card, hedgehogZone);
+    });
+
+    /*
+      Bild des Igels:
+      Falls das Foto nicht geladen werden kann,
+      wird automatisch ein Ersatzsymbol angezeigt.
+    */
+
+    document.getElementById("hedgehogImage").addEventListener("error", () => {
+      document.getElementById("hedgehogImage").style.display = "none";
+      document.getElementById("hedgehogFallback").style.display = "block";
+    });
+
+    hedgehogZone.addEventListener("dragover", event => {
+      event.preventDefault();
+      hedgehogZone.classList.add("drag-over");
+    });
+
+    hedgehogZone.addEventListener("dragleave", () => {
+      hedgehogZone.classList.remove("drag-over");
+    });
+
+    hedgehogZone.addEventListener("drop", event => {
+      event.preventDefault();
+      hedgehogZone.classList.remove("drag-over");
+
+      const name = event.dataTransfer.getData("text/plain");
+
+      const card = [...document.querySelectorAll(".food-card")]
+        .find(item => item.dataset.name === name);
+
+      if (card) {
+        processFood(card);
+      }
+    });
+
+    hedgehogZone.addEventListener("click", () => {
+      if (selectedCard) {
+        processFood(selectedCard);
+      }
+    });
+
+    function setHedgehogMood(mood) {
+      hedgehog.classList.remove("happy", "chewing");
+      hedgehogFace.classList.remove("sad");
+
+      if (mood === "chewing") {
+        hedgehogFace.textContent = "😋";
+        hedgehog.classList.add("chewing");
+      }
+
+      if (mood === "happy") {
+        hedgehogFace.textContent = "😋";
+        hedgehog.classList.add("happy");
+      }
+
+      if (mood === "sad") {
+        hedgehogFace.textContent = "😟";
+        hedgehogFace.classList.add("sad");
+      }
+
+      if (mood === "normal") {
+        hedgehogFace.textContent = "😊";
+      }
+    }
+
+    function spitFoodBack(card, food) {
+      const hedgehogRect = hedgehogZone.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
+
+      const startX = hedgehogRect.left + hedgehogRect.width / 2;
+      const startY = hedgehogRect.top + hedgehogRect.height / 2;
+
+      const targetX = cardRect.left + cardRect.width / 2;
+      const targetY = cardRect.top + cardRect.height / 2;
+
+      const spitItem = document.createElement("div");
+      spitItem.className = "spit-item";
+      spitItem.textContent = food.fallback;
+
+      spitItem.style.left = `${startX}px`;
+      spitItem.style.top = `${startY}px`;
+      spitItem.style.setProperty("--dx", `${targetX - startX}px`);
+      spitItem.style.setProperty("--dy", `${targetY - startY}px`);
+
+      document.body.appendChild(spitItem);
+
+      card.style.visibility = "hidden";
+
+      setTimeout(() => {
+        spitItem.remove();
+        card.style.visibility = "visible";
+        card.classList.add("returning");
+
+        setTimeout(() => {
+          card.classList.remove("returning");
+        }, 700);
+      }, 800);
+    }
+
+    function addToBelly(food) {
+      const item = document.createElement("div");
+      item.className = "tray-item";
+      item.title = `${food.article} ${food.word}`;
+      item.textContent = food.fallback;
+      eatenItems.appendChild(item);
+    }
+
+    function processFood(card) {
+      if (card.classList.contains("eaten")) {
+        return;
+      }
+
+      const food = foods.find(item => item.word === card.dataset.name);
+
+      if (!food) {
+        return;
+      }
+
+      card.classList.remove("selected");
+      selectedCard = null;
+
+      if (food.eats) {
+        eaten.push(food);
+        card.classList.add("eaten");
+        addToBelly(food);
+
+        setHedgehogMood("chewing");
+        message.textContent =
+          `Mmm, lecker! Der Igel kaut ${food.article} ${food.word}.`;
+
+        setTimeout(() => {
+          setHedgehogMood("happy");
+          message.textContent =
+            `Der Igel freut sich. ${food.article} ${food.word} schmeckt ihm!`;
+        }, 1150);
+
+        setTimeout(() => {
+          setHedgehogMood("normal");
+        }, 1900);
+      } else {
+        setHedgehogMood("sad");
+
+        message.textContent =
+          `Oh nein! Der Igel spuckt ${food.article} ${food.word} wieder aus.`;
+
+        spitFoodBack(card, food);
+
+        setTimeout(() => {
+          setHedgehogMood("normal");
+        }, 1300);
+      }
+    }
+
+    document.getElementById("finishButton").addEventListener("click", () => {
+      bellyView.innerHTML = "";
+
+      if (eaten.length === 0) {
+        bellyText.textContent = "Im Bauch ist noch nichts.";
+      } else {
+        eaten.forEach(food => {
+          const bellyFood = document.createElement("div");
+          bellyFood.className = "belly-food";
+          bellyFood.title = `${food.article} ${food.word}`;
+
+          const image = document.createElement("img");
+          image.src = food.image;
+          image.alt = `${food.article} ${food.word}`;
+
+          image.addEventListener("error", () => {
+            image.replaceWith(createFallbackImage(food));
+          });
+
+          bellyFood.appendChild(image);
+          bellyView.appendChild(bellyFood);
+        });
+
+        bellyText.textContent =
+          `Im Bauch liegen ${eaten.length} passende Futterkarten.`;
+      }
+
+      bellyModal.classList.add("show");
+    });
+
+    document.getElementById("closeButton").addEventListener("click", () => {
+      bellyModal.classList.remove("show");
+    });
+
+    bellyModal.addEventListener("click", event => {
+      if (event.target === bellyModal) {
+        bellyModal.classList.remove("show");
+      }
+    });
+
+    document.getElementById("resetButton").addEventListener("click", () => {
+      location.reload();
+    });
+  </script>
+</body>
+</html>
